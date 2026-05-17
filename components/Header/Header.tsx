@@ -1,4 +1,6 @@
 import Link from 'next/link';
+
+import AuthNavigation from '@/components/AuthNavigation/AuthNavigation';
 import css from './Header.module.css';
 
 export default function Header() {
@@ -16,6 +18,7 @@ export default function Header() {
           <li>
             <Link href="/notes/filter/all">Notes</Link>
           </li>
+          <AuthNavigation />
         </ul>
       </nav>
     </header>

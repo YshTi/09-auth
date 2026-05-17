@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import css from './not-found.module.css';
 
 const SITE_URL = 'https://08-zustand-sepia-eight.vercel.app';
 const OG_IMAGE = 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg';
@@ -25,8 +24,8 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <>
-      <h1 className={css.title}>404 - Page not found</h1>
-      <p className={css.description}>
+      <h1 className="title">404 - Page not found</h1>
+      <p className="description">
         Sorry, the page you are looking for does not exist.
       </p>
     </>
