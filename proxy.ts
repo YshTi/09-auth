@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parse } from 'cookie';
 
 import { checkSession } from './lib/api/serverApi';
 
@@ -17,20 +16,19 @@ const setAuthCookies = (
     : [setCookieHeader];
 
   for (const cookieStr of cookies) {
-    const parsed = parse(cookieStr);
+    const [cookiePair] = cookieStr.split(';');
+    const [name, ...valueParts] = cookiePair.split('=');
+    const value = valueParts.join('=');
 
-    const options = {
-      expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-      path: parsed.Path,
-      maxAge: parsed['Max-Age'] ? Number(parsed['Max-Age']) : undefined,
-    };
+    if (!name || !value) continue;
 
-    if (parsed.accessToken) {
-      response.cookies.set('accessToken', parsed.accessToken, options);
-    }
-
-    if (parsed.refreshToken) {
-      response.cookies.set('refreshToken', parsed.refreshToken, options);
+    if (name === 'accessToken' || name === 'refreshToken') {
+      response.cookies.set(name, value, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
     }
   }
 };
@@ -48,7 +46,7 @@ export async function proxy(request: NextRequest) {
   const refreshToken = request.cookies.get('refreshToken')?.value;
 
   let isAuthenticated = Boolean(accessToken);
-  const response = NextResponse.next();
+  let refreshedCookies: string | string[] | undefined;
 
   if (!accessToken && refreshToken) {
     try {
@@ -58,7 +56,7 @@ export async function proxy(request: NextRequest) {
 
       if (sessionResponse.data.success) {
         isAuthenticated = true;
-        setAuthCookies(response, sessionResponse.headers['set-cookie']);
+        refreshedCookies = sessionResponse.headers['set-cookie'];
       }
     } catch {
       isAuthenticated = false;
@@ -71,21 +69,12 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthenticated && isAuthRoute) {
     const redirectResponse = NextResponse.redirect(new URL('/', request.url));
-
-    if (!accessToken && refreshToken) {
-      try {
-        const sessionResponse = await checkSession(
-          request.headers.get('cookie') ?? '',
-        );
-
-        setAuthCookies(redirectResponse, sessionResponse.headers['set-cookie']);
-      } catch {
-        // Ignore refresh errors and continue redirect.
-      }
-    }
-
+    setAuthCookies(redirectResponse, refreshedCookies);
     return redirectResponse;
   }
+
+  const response = NextResponse.next();
+  setAuthCookies(response, refreshedCookies);
 
   return response;
 }
